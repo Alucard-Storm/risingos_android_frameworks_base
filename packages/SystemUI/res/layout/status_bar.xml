@@ -85,7 +85,7 @@
                         android:layout="@layout/operator_name" />
 
                     <com.android.systemui.rising.logo.LogoImageView
-                        android:id="@+id/statusbar_logo"
+                        android:id="@+id/statusbar_logo_left"
                         android:layout_width="@dimen/statusbar_logo_size"
                         android:layout_height="@dimen/statusbar_logo_size"
                         android:layout_gravity="center_vertical|start"

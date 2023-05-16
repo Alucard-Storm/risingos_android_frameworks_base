@@ -91,8 +91,6 @@ import com.android.systemui.util.CarrierConfigTracker.DefaultDataSubscriptionCha
 import com.android.systemui.util.settings.SecureSettings;
 import com.android.systemui.tuner.TunerService;
 
-import com.android.systemui.rising.logo.LogoImage;
-
 import lineageos.providers.LineageSettings;
 
 import java.io.PrintWriter;
@@ -115,6 +113,9 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
 
     private static final String STATUSBAR_CLOCK_CHIP =
             "system:" + Settings.System.STATUSBAR_CLOCK_CHIP;
+            
+    private static final String STATUS_BAR_LOGO_POSITION =
+            "system:" + Settings.System.STATUS_BAR_LOGO_POSITION;
 
     private static final String CLOCK_POSITION =
             "lineagesystem:" + LineageSettings.System.STATUS_BAR_CLOCK;
@@ -161,6 +162,7 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
     private StatusIconContainer mStatusIcons;
     private int mSignalClusterEndPadding = 0;
     private int mShowSBClockBg;
+    private int mLogoPosition;
 
     private List<String> mBlockedIcons = new ArrayList<>();
     private Map<Startable, Startable.State> mStartableStates = new ArrayMap<>();
@@ -308,7 +310,7 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
         mBatteryMeterView = mStatusBar.findViewById(R.id.battery);
         mBatteryMeterView.addCallback(mBatteryMeterViewCallback);
         mOngoingCallChip = mStatusBar.findViewById(R.id.ongoing_call_chip);
-        mLeftLogo = mStatusBar.findViewById(R.id.statusbar_logo);
+        mLeftLogo = mStatusBar.findViewById(R.id.statusbar_logo_left);
         showEndSideContent(false);
         showClock(false);
         initEmergencyCryptkeeperText();
@@ -372,6 +374,7 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
         mAnimationScheduler.addCallback(this);
 
         Dependency.get(TunerService.class).addTunable(this, STATUSBAR_CLOCK_CHIP);
+        Dependency.get(TunerService.class).addTunable(this, STATUS_BAR_LOGO_POSITION);
 
         mSecureSettings.registerContentObserverForUser(
                 Settings.Secure.getUriFor(Settings.Secure.STATUS_BAR_SHOW_VIBRATE_ICON),
@@ -433,6 +436,10 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
                 break;
             case CLOCK_POSITION:
                 mClockPosition = TunerService.parseInteger(newValue, 2);
+                break;
+            case STATUS_BAR_LOGO_POSITION:
+                mLogoPosition = 
+                        TunerService.parseInteger(newValue, 0);
                 break;
             default:
                 break;
@@ -667,14 +674,14 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
     }
 
     public void hideNotificationIconArea(boolean animate) {
-    	if (LogoImage.getLogoPosition(getContext()) == 0) {
+    	if (mLogoPosition == 0) {
             animateFullyHide(mLeftLogo, animate);
         }
         animateHide(mNotificationIconAreaInner, animate);
     }
 
     public void showNotificationIconArea(boolean animate) {
-    	if (LogoImage.getLogoPosition(getContext()) == 0) {
+    	if (mLogoPosition == 0) {
             animateShow(mLeftLogo, animate);
         }
         animateShow(mNotificationIconAreaInner, animate);
