@@ -119,7 +119,6 @@ import com.android.server.am.PlatformCompatCache.CachedCompatChangeId;
 import com.android.server.wm.ActivityServiceConnectionsHolder;
 import com.android.server.wm.WindowProcessController;
 
-import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -358,24 +357,6 @@ public class OomAdjuster {
         mTmpQueue = new ArrayDeque<ProcessRecord>(mConstants.CUR_MAX_CACHED_PROCESSES << 1);
         mNumSlots = ((ProcessList.CACHED_APP_MAX_ADJ - ProcessList.CACHED_APP_MIN_ADJ + 1) >> 1)
                 / ProcessList.CACHED_APP_IMPORTANCE_LEVELS;
-    }
-
-    private boolean conditionallyEnableProactiveKills() {
-    	boolean isModernKernel = false;
-    	StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskReads();
-    	try {
-            final File mglru = new File("/sys/kernel/mm/lru_gen/enabled");
-            final File psi = new File("/proc/pressure/memory");
-            final File lmk_kernel = new File("/sys/module/lowmemorykiller/parameters/minfree");
-            isModernKernel = !lmk_kernel.exists() && mglru.exists() && psi.exists();
-	} catch (Exception e) {
-	} finally {
-	    StrictMode.setThreadPolicy(oldPolicy);
-	}
-	if (DEBUG_OOM_ADJ) {
-	    Slog.i(TAG, "Detected kernel with " + (isModernKernel ? "modern" : "legacy") + " mm setup,  " + (isModernKernel ? "enabling" : "disabling") + " Proactive Kills.");
-	}
-	return isModernKernel;
     }
 
     void initSettings() {
@@ -1123,8 +1104,9 @@ public class OomAdjuster {
         long serviceLastActivity = 0;
         int numBServices = 0;
 
+        boolean proactiveKillsEnabled = mConstants.PROACTIVE_KILLS_ENABLED;
         double lowSwapThresholdPercent = mConstants.LOW_SWAP_THRESHOLD_PERCENT;
-        double freeSwapPercent = mProactiveKillsEnabled ? getFreeSwapPercent() : 1.00;
+        double freeSwapPercent =  proactiveKillsEnabled ? getFreeSwapPercent() : 1.00;
         ProcessRecord lruCachedApp = null;
 
         for (int i = numLru - 1; i >= 0; i--) {
@@ -1192,7 +1174,7 @@ public class OomAdjuster {
                                     ApplicationExitInfo.REASON_OTHER,
                                     ApplicationExitInfo.SUBREASON_TOO_MANY_CACHED,
                                     true);
-                        } else if (mProactiveKillsEnabled) {
+                        } else if (proactiveKillsEnabled) {
                             lruCachedApp = app;
                         }
                         break;
@@ -1213,7 +1195,7 @@ public class OomAdjuster {
                                         ApplicationExitInfo.REASON_OTHER,
                                         ApplicationExitInfo.SUBREASON_TOO_MANY_EMPTY,
                                         true);
-                            } else if (mProactiveKillsEnabled) {
+                            } else if (proactiveKillsEnabled) {
                                 lruCachedApp = app;
                             }
                         }
@@ -1254,7 +1236,7 @@ public class OomAdjuster {
                         + " app.pid = " + selectedAppRecord.getPid() + " is moved to higher adj");
         }
 
-        if (mProactiveKillsEnabled                              // Proactive kills enabled?
+        if (proactiveKillsEnabled                               // Proactive kills enabled?
                 && doKillExcessiveProcesses                     // Should kill excessive processes?
                 && freeSwapPercent < lowSwapThresholdPercent    // Swap below threshold?
                 && lruCachedApp != null                         // If no cached app, let LMKD decide
